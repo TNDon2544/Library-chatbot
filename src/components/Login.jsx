@@ -44,7 +44,7 @@ function Login() {
         { username, password }
       );
       // console.log("Authentication Response:", response.data);
-      localStorage.setItem("token", response.data.jwtToken);
+      localStorage.setItem("token", response.data.accessToken);
       const token = localStorage.getItem("token");
       if (token) {
         const decoded = jwtDecode(token);
