@@ -11,6 +11,7 @@ import { jwtDecode } from "jwt-decode";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { logout } from "../service/auth";
 
 function Login() {
   useEffect(() => {
@@ -36,6 +37,10 @@ function Login() {
 
   const [visible, setvisible] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    logout();
+  }, []);
 
   const getlogin = async (username, password) => {
     try {
