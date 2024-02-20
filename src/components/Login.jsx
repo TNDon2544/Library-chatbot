@@ -54,6 +54,7 @@ function Login() {
       if (token) {
         const decoded = jwtDecode(token);
         localStorage.setItem("name", decoded.userInfo.displayname);
+        localStorage.setItem("username", decoded.userInfo.username);
       }
       Swal.fire({
         icon: "success",
