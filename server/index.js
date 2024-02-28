@@ -1,12 +1,49 @@
 /* eslint-disable no-undef */
 const express = require("express");
 const app = express();
+const mysql = require("mysql");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
 app.use(cors());
 
 const server = http.createServer(app);
+// MySQL Connection
+const connection = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "root",
+  database: "chat_history",
+});
+
+connection.connect((err) => {
+  if (err) {
+    console.log("Error connecting to MySQL database = ", err);
+    return;
+  }
+  console.log('MySQL successfully connected')
+});
+
+app.get('/chat_history', (req, res) => {
+  connection.query('SELECT * FROM chat_history', (error, results) => {
+    if (error) throw error;
+    const chatHistoryByRoom = {};
+    results.forEach(row => {
+      const { room_id, message_id, sender_id, message, timestamp } = row;
+      if (!chatHistoryByRoom[room_id]) {
+        chatHistoryByRoom[room_id] = [];
+      }
+      chatHistoryByRoom[room_id].push({
+        message_id,
+        sender_id,
+        message,
+        timestamp
+      });
+    });
+    res.json(chatHistoryByRoom);
+  });
+});
+
 
 const io = new Server(server, {
   cors: {
