@@ -6,24 +6,28 @@ import {
   SendOutlined,
 } from "@ant-design/icons";
 import { useRoomAdmin } from "../@hooks/globalState";
+import { getRoom, saveMessage } from "../service/chat";
 
 Chat.propTypes = {
   socket: PropTypes.object.isRequired,
+  name: PropTypes.string.isRequired,
   username: PropTypes.string.isRequired,
   room: PropTypes.string.isRequired,
   role: PropTypes.string.isRequired,
 };
 
-function Chat({ socket, username, room, role }) {
+function Chat({ socket, name, username, room, role }) {
   const [currentMessage, setCurrentMessage] = useState("");
   const [messageList, setMessageList] = useState([]);
+  const [allRoom, setAllRoom] = useState([]);
+  const [nameRoom, setNameRoom] = useState("");
   const { roomAdmin, setRoomAdmin } = useRoomAdmin();
 
   const sendMessage = async () => {
     if (currentMessage !== "") {
       const messageData = {
         room: room,
-        author: username,
+        author: name,
         message: currentMessage,
         time:
           new Date(Date.now()).getHours() +
@@ -31,10 +35,15 @@ function Chat({ socket, username, room, role }) {
           new Date(Date.now()).getMinutes(),
       };
       await socket.emit("send_message", messageData);
+      saveMessage(username, room, currentMessage);
       setMessageList((list) => [...list, messageData]);
       setCurrentMessage("");
     }
   };
+
+  useEffect(() => {
+    getRoom().then((res) => setAllRoom(res.data));
+  }, []);
 
   useEffect(() => {
     const receiveMessageHandler = (data) => {
@@ -55,39 +64,27 @@ function Chat({ socket, username, room, role }) {
               role === "m" ? "hidden" : ""
             } absolute h-[520px] w-[300px] border-[1px] rounded-[15px] left-[-400px] top-0 p-[20px] flex flex-col gap-3`}
           >
-            <div
-              className="flex items-center w-full h-[40px] rounded-[15px] bg-[#f0f0f0] hover:bg-[#e9e8e8] px-[20px] cursor-pointer"
-              onClick={() => {
-                socket.emit("leave_room", roomAdmin);
-                setRoomAdmin("s6203051613140");
-              }}
-            >
-              กฤติน ลิ้มสมเกียรติ
-            </div>
-            <div
-              className="flex items-center w-full h-[40px] rounded-[15px] bg-[#f0f0f0] hover:bg-[#e9e8e8] px-[20px] cursor-pointer"
-              onClick={() => {
-                socket.emit("leave_room", roomAdmin);
-                setRoomAdmin("s6203051613093");
-              }}
-            >
-              ภานุศักดิ์ ชอบธรรม
-            </div>
-            <div>
-              Select :
-              {roomAdmin === "s6203051613140"
-                ? "กฤติน ลิ้มสมเกียรติ"
-                : roomAdmin === "s6203051613093"
-                ? "ภานุศักดิ์ ชอบธรรม"
-                : ""}
-            </div>
+            {allRoom?.map((room) => (
+              <div
+                key={room.room_id}
+                className="flex items-center w-full h-[40px] rounded-[15px] bg-[#f0f0f0] hover:bg-[#e9e8e8] px-[20px] cursor-pointer"
+                onClick={() => {
+                  socket.emit("leave_room", roomAdmin);
+                  setRoomAdmin(room.room_id);
+                  setNameRoom(room.room_name);
+                }}
+              >
+                {room.room_name}
+              </div>
+            ))}
+            <div>Select :{nameRoom}</div>
           </div>
           <div className="h-[85%] overflow-auto px-[20px]">
             {messageList.map((messageContent, index) => {
               return (
                 <div
                   className="message"
-                  id={username === messageContent.author ? "you" : "other"}
+                  id={name === messageContent.author ? "you" : "other"}
                   key={index}
                 >
                   <div>

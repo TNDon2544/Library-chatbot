@@ -50,6 +50,7 @@ function Login() {
       );
       // console.log("Authentication Response:", response.data);
       localStorage.setItem("token", response.data.accessToken);
+      localStorage.setItem("refreshToken", response.data.refreshToken);
       const token = localStorage.getItem("token");
       if (token) {
         const decoded = jwtDecode(token);

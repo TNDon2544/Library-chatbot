@@ -43,7 +43,8 @@ function Home() {
         <Chat
           room={role === "m" ? username : roomAdmin}
           socket={socket}
-          username={name}
+          username={username}
+          name={name}
           role={role}
         />
       ) : null}

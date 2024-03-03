@@ -6,14 +6,15 @@ const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
 app.use(cors());
+app.use(express.json());
 
 const server = http.createServer(app);
 // MySQL Connection
 const connection = mysql.createConnection({
-  host: "localhost",
+  host: "34.143.237.75",
   user: "root",
-  password: "root",
-  database: "chat_history",
+  password: "Lukw@789",
+  database: "chatbot-storage",
 });
 
 connection.connect((err) => {
@@ -21,29 +22,45 @@ connection.connect((err) => {
     console.log("Error connecting to MySQL database = ", err);
     return;
   }
-  console.log('MySQL successfully connected')
+  console.log("MySQL successfully connected");
 });
 
-app.get('/chat_history', (req, res) => {
-  connection.query('SELECT * FROM chat_history', (error, results) => {
+app.get("/api/allroom", (req, res) => {
+  connection.query("SELECT * FROM room", (error, results) => {
     if (error) throw error;
-    const chatHistoryByRoom = {};
-    results.forEach(row => {
-      const { room_id, message_id, sender_id, message, timestamp } = row;
-      if (!chatHistoryByRoom[room_id]) {
-        chatHistoryByRoom[room_id] = [];
-      }
-      chatHistoryByRoom[room_id].push({
-        message_id,
-        sender_id,
-        message,
-        timestamp
-      });
-    });
-    res.json(chatHistoryByRoom);
+    res.json(results);
   });
 });
 
+app.get("/api/chat/:room_id", (req, res) => {
+  const { room_id } = req.params;
+
+  connection.query(
+    "SELECT * FROM message WHERE room_id = ?",
+    [room_id],
+    (error, results) => {
+      if (error) throw error;
+      res.json(results);
+    }
+  );
+});
+
+app.post("/api/send", (req, res) => {
+  const { sender_id, room_id, message_content } = req.body;
+  const sql =
+    "INSERT INTO message (sender_id, room_id, message_content, sent_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+  connection.query(
+    sql,
+    [sender_id, room_id, message_content],
+    (error) => {
+      if (error) {
+        console.error("Error inserting message:", error);
+        return res.status(500).json({ error: "Error inserting message" });
+      }
+      res.status(201).json({ message: "Message sent successfully" });
+    }
+  );
+});
 
 const io = new Server(server, {
   cors: {

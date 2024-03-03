@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login and Logout Test</title>
+</head>
+
+<body>
+  <h1>Login and Logout Test</h1>
+
+  <div id="output"></div>
+
+  <label for="username">Username:</label>
+  <input type="text" id="username" placeholder="Enter username">
+
+  <label for="password">Password:</label>
+  <input type="password" id="password" placeholder="Enter password">
+
+  <button onclick="login()">Login</button>
+  <button onclick="logout()">Logout</button>
+  <button onclick="checkToken()">Check Token</button>
+
+  <script>
+    const baseUrl = 'https://auth-api-backend-411408.uc.r.appspot.com'; // Update with your server URL
+
+    async function login() {
+      try {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        const response = await fetch(`https://auth-api-backend-411408.uc.r.appspot.com/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.accessToken) {
+            // Store tokens in sessionStorage
+            sessionStorage.setItem('accessToken', data.accessToken);
+            sessionStorage.setItem('refreshToken', data.refreshToken);
+
+            // Schedule token refresh before expiration
+            scheduleTokenRefresh(data.expiresIn);
+          }
+
+          displayOutput(data);
+        } else {
+          const data = await response.json(); // Extracting the error message
+          console.error('Login failed:', data.error || 'Unknown error');
+        }
+      } catch (error) {
+        console.error('Error during login:', error);
+      }
+    }
+
+
+    function logout() {
+      // Clear tokens and user data from sessionStorage
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
+
+      // Display output
+      displayOutput({ status: 'success', message: 'Logout successful' });
+    }
+
+    // Inside your checkToken function in the frontend
+
+    async function checkToken() {
+      try {
+        const accessToken = getAccessToken();
+
+        if (!accessToken) {
+          console.error('Access token is missing or invalid');
+          return;
+        }
+
+        console.log('Access Token:', accessToken); // Log the access token
+
+        const response = await fetch(`https://auth-api-backend-411408.uc.r.appspot.com/authtoken/protected`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json', // Add this line
+          },
+        });
+
+        if (!response.ok) {
+          console.error('Token check failed:', response.statusText);
+          return;
+        }
+
+        const data = await response.json();
+        displayOutput(data);
+      } catch (error) {
+        console.error('Error checking token:', error);
+      }
+    }
+
+
+    function scheduleTokenRefresh(expiresIn) {
+      // Convert expiresIn to milliseconds
+      const expiresInMs = expiresIn * 1000;
+
+      // Set timeout to refresh token every 14 minutes
+      setInterval(refreshToken, 1 * 60 * 1000); // Refresh every 14 minutes
+    }
+
+    async function refreshToken() {
+      try {
+        const refreshToken = sessionStorage.getItem('refreshToken');
+
+        if (!refreshToken) {
+          console.error('Refresh token not found');
+          return;
+        }
+
+        const response = await fetch(`https://auth-api-backend-411408.uc.r.appspot.com/authtoken/refresh`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${refreshToken}`
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.accessToken) {
+            // Update the access token in sessionStorage
+            sessionStorage.setItem('accessToken', data.accessToken);
+
+            // Schedule the next token refresh
+            scheduleTokenRefresh(data.expiresIn);
+          }
+
+          displayOutput(data);
+        } else {
+          console.error('Token refresh failed:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error during token refresh:', error);
+      }
+    }
+
+    function getAccessToken() {
+      // Retrieve the access token from sessionStorage
+      return sessionStorage.getItem('accessToken');
+    }
+    function displayOutput(data) {
+      const outputElement = document.getElementById('output');
+      outputElement.innerHTML = JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+
+</html>
