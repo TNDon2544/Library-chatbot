@@ -6,7 +6,8 @@ import {
   SendOutlined,
 } from "@ant-design/icons";
 import { useRoomAdmin } from "../@hooks/globalState";
-import { getRoom, saveMessage } from "../service/chat";
+import { getChat, getRoom, saveMessage } from "../service/chat";
+import { format } from "date-fns";
 
 Chat.propTypes = {
   socket: PropTypes.object.isRequired,
@@ -25,25 +26,36 @@ function Chat({ socket, name, username, room, role }) {
 
   const sendMessage = async () => {
     if (currentMessage !== "") {
-      const messageData = {
-        room: room,
-        author: name,
-        message: currentMessage,
-        time:
-          new Date(Date.now()).getHours() +
-          ":" +
-          new Date(Date.now()).getMinutes(),
-      };
-      await socket.emit("send_message", messageData);
-      saveMessage(username, room, currentMessage);
-      setMessageList((list) => [...list, messageData]);
-      setCurrentMessage("");
+      try {
+        const res = await saveMessage(name, username, room, currentMessage);
+        const newMessageData = {
+          name: res.name,
+          room: res.room_id,
+          sender_id: res.sender_id,
+          message_content: res.message_content,
+          sent_at: res.sent_at,
+        };
+        await socket.emit("send_message", newMessageData);
+        setMessageList((list) => [...list, newMessageData]);
+        setCurrentMessage("");
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
     }
   };
 
   useEffect(() => {
-    getRoom().then((res) => setAllRoom(res.data));
-  }, []);
+    if (role) {
+      if (role === "a") {
+        if (roomAdmin) {
+          getChat(roomAdmin).then((res) => setMessageList(res.data));
+        }
+        getRoom().then((res) => setAllRoom(res.data));
+      } else {
+        getChat(username).then((res) => setMessageList(res.data));
+      }
+    }
+  }, [role, roomAdmin, username]);
 
   useEffect(() => {
     const receiveMessageHandler = (data) => {
@@ -54,6 +66,17 @@ function Chat({ socket, name, username, room, role }) {
       socket.off("receive_message", receiveMessageHandler);
     };
   }, [socket]);
+
+  const scrollToBottom = () => {
+    const divChat = document.querySelector(".chat");
+    if (divChat) {
+      divChat.scrollTop = divChat.scrollHeight - divChat.clientHeight;
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messageList]);
 
   return (
     <>
@@ -79,21 +102,28 @@ function Chat({ socket, name, username, room, role }) {
             ))}
             <div>Select :{nameRoom}</div>
           </div>
-          <div className="h-[85%] overflow-auto px-[20px]">
+          <div className="chat h-[85%] overflow-auto px-[20px]">
             {messageList.map((messageContent, index) => {
               return (
                 <div
-                  className="message"
+                  className="border-[1px] rounded-[10px] my-2 p-2"
                   id={name === messageContent.author ? "you" : "other"}
                   key={index}
                 >
                   <div>
                     <div className="message-content">
-                      <p>{messageContent.message}</p>
+                      <p>{messageContent.message_content}</p>
                     </div>
                     <div className="message-meta">
-                      <p id="time">{messageContent.time}</p>
-                      <p id="author">{messageContent.author}</p>
+                      <p id="time">
+                        {messageContent.sent_at
+                          ? format(
+                              new Date(messageContent.sent_at),
+                              "yyyy-MM-dd HH:mm"
+                            )
+                          : ""}
+                      </p>
+                      <p id="author">{messageContent.name}</p>
                     </div>
                   </div>
                 </div>

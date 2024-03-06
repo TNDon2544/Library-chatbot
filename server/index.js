@@ -34,30 +34,45 @@ app.get("/api/allroom", (req, res) => {
 
 app.get("/api/chat/:room_id", (req, res) => {
   const { room_id } = req.params;
+  const { limit } = req.query;
 
-  connection.query(
-    "SELECT * FROM message WHERE room_id = ?",
-    [room_id],
-    (error, results) => {
-      if (error) throw error;
-      res.json(results);
-    }
-  );
+  let sql = "SELECT * FROM message WHERE room_id = ?";
+  const values = [room_id];
+
+  if (limit) {
+    sql += " ORDER BY message_id DESC LIMIT ?";
+    values.push(parseInt(limit));
+  } else {
+    sql += " ORDER BY message_id DESC";
+    values.push(parseInt(limit));
+  }
+
+  connection.query(sql, values, (error, results) => {
+    if (error) throw error;
+    res.json(results.reverse());
+  });
 });
 
 app.post("/api/send", (req, res) => {
-  const { sender_id, room_id, message_content } = req.body;
+  const { name, sender_id, room_id, message_content } = req.body;
   const sql =
-    "INSERT INTO message (sender_id, room_id, message_content, sent_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+    "INSERT INTO message (name,sender_id, room_id, message_content, sent_at) VALUES (?,?, ?, ?, CURRENT_TIMESTAMP)";
   connection.query(
     sql,
-    [sender_id, room_id, message_content],
+    [name, sender_id, room_id, message_content],
     (error) => {
       if (error) {
         console.error("Error inserting message:", error);
         return res.status(500).json({ error: "Error inserting message" });
       }
-      res.status(201).json({ message: "Message sent successfully" });
+      res.status(201).json({
+        name,
+        sender_id,
+        room_id,
+        message_content,
+        sent_at: new Date(),
+        message: "Message sent successfully",
+      });
     }
   );
 });
