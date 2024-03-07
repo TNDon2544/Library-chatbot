@@ -12,6 +12,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { logout } from "../service/auth";
+import { useRoomAdmin } from "../@hooks/globalState";
 
 function Login() {
   useEffect(() => {
@@ -37,10 +38,12 @@ function Login() {
 
   const [visible, setvisible] = useState(false);
   const navigate = useNavigate();
+  const { setRoomAdmin } = useRoomAdmin();
 
   useEffect(() => {
+    setRoomAdmin("");
     logout();
-  }, []);
+  }, [setRoomAdmin]);
 
   const getlogin = async (username, password) => {
     try {

@@ -42,7 +42,7 @@ function Navbar() {
         <span className="loader" />
       </div>
 
-      <div className="h-full w-full py-1 shadow-[0px_5px_10px_0px_#62618E40]">
+      <div className="h-full w-full py-1 shadow-[0px_5px_10px_0px_#62618E40] bg-white">
         <div className="container mx-auto px-2 md:px-6">
           <div className="flex justify-between items-center">
             <img
