@@ -16,11 +16,11 @@ export const getMethod = (endpoint) => {
     });
 };
 
-export const postMethod = (endpoint, body) => {
+export const postMethod = (endpoint, body, bearer) => {
   return axios
     .post(`${import.meta.env.VITE_API_URL}${endpoint}`, body, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${localStorage.getItem(bearer)}`,
       },
     })
     .then((response) => {

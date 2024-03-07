@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import icitLogo from "../assets/icit-logo.png";
-import { logout, isUserLoggedIn } from "../service/auth";
+import { logout, isUserLoggedIn, refreshToken } from "../service/auth";
 import { useEffect, useState } from "react";
 import "../css/loading.css";
 
@@ -14,6 +14,22 @@ function Navbar() {
       isLoggedIn ? setIsLogin(isLoggedIn) : navigate("/login")
     );
   }, [navigate]);
+
+  useEffect(() => {
+    const refreshTokenIfExpired = () => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const exp = localStorage.getItem("exp");
+      if (exp -60 < currentTime) {
+        refreshToken();
+      }
+    };
+
+    refreshTokenIfExpired();
+
+    const intervalId = setInterval(refreshTokenIfExpired, 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const handleLogout = () => {
     logout();
