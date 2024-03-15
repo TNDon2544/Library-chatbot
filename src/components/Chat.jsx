@@ -82,7 +82,7 @@ function Chat({ socket, name, username, room, role }) {
   return (
     <>
       {role ? (
-        <div className="px-4 lg:flex items-start gap-5 justify-center pt-7 md:pt-12 pb-7">
+        <div className="px-4 md:flex items-start gap-5 justify-center pt-3 md:pt-4 pb-7 ">
           <div className={`${roomAdmin?"hidden":""}`}>
             <div
               className={` ${

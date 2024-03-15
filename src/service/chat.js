@@ -1,12 +1,8 @@
-import axios from "axios";
+import { getMethod, postMethod } from "./axiosFetchData";
 
 export async function getRoom() {
   try {
-    const res = await axios.get("http://localhost:3001/api/allroom", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
+    const res = await getMethod("/api/allroom");
     return res;
   } catch (error) {
     console.error("Error:", error);
@@ -14,9 +10,9 @@ export async function getRoom() {
   }
 }
 
-export async function saveMessage(name,sender_id, room_id, message_content) {
+export async function saveMessage(name, sender_id, room_id, message_content) {
   try {
-    const res = await axios.post("http://localhost:3001/api/send", {
+    const res = await postMethod("/api/send", {
       name,
       sender_id,
       room_id,
@@ -30,14 +26,7 @@ export async function saveMessage(name,sender_id, room_id, message_content) {
 
 export async function getChat(room_id) {
   try {
-    const res = await axios.get(
-      `http://localhost:3001/api/chat/${room_id}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      }
-    );
+    const res = await getMethod(`/api/chat/${room_id}`);
     return res;
   } catch (error) {
     console.error("Error:", error);

@@ -60,7 +60,7 @@ function Navbar() {
                 onClick={handleLogout}
                 className={`${
                   isLogin ? "" : "hidden"
-                } text-[14px] md:text-[16px] h-full px-3 py-1  bg-[#1f5e95] text-white rounded-[18px]`}
+                } text-[14px] md:text-[16px] h-full px-3 py-1  bg-[#1f5e95] hover:bg-[#386c9c] text-white rounded-[18px]`}
               >
                 ออกจากระบบ
               </button>
