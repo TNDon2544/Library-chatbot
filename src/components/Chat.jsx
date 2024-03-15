@@ -83,7 +83,7 @@ function Chat({ socket, name, username, room, role }) {
     <>
       {role ? (
         <div className="px-4 md:flex items-start gap-5 justify-center pt-3 md:pt-4 pb-7 ">
-          <div className={`${roomAdmin?"hidden":""}`}>
+          <div className={`${roomAdmin ? "hidden" : ""}`}>
             <div
               className={` ${
                 role === "m" ? "hidden" : ""
@@ -111,7 +111,10 @@ function Chat({ socket, name, username, room, role }) {
                   className={`${
                     role === "a" ? "" : "hidden"
                   } flex justify-center items-center rounded-full w-[35px] h-[30px] hover:bg-[#f3f6ff] cursor-pointer`}
-                  onClick={()=>setRoomAdmin("")}
+                  onClick={() => {
+                    setRoomAdmin("");
+                    setMessageList([]);
+                  }}
                 >
                   <LeftOutlined className="text-[#0185ff] text-[20px]" />
                 </div>
