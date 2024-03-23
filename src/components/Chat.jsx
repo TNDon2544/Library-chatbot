@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import {
   LeftOutlined,
@@ -9,7 +9,10 @@ import {
 import { useRoomAdmin } from "../@hooks/globalState";
 import { getChat, getRoom, saveMessage } from "../service/chat";
 import { format } from "date-fns";
-
+import Linkify from "react-linkify";
+import { botTest } from "../service/botTest";
+import Swal from "sweetalert2";
+import botImg from "../assets/bot-img.jpg";
 Chat.propTypes = {
   socket: PropTypes.object.isRequired,
   name: PropTypes.string.isRequired,
@@ -24,8 +27,33 @@ function Chat({ socket, name, username, room, role }) {
   const [allRoom, setAllRoom] = useState([]);
   const [nameRoom, setNameRoom] = useState("");
   const { roomAdmin, setRoomAdmin } = useRoomAdmin();
+  const [botResponse, setBotResponse] = useState(true);
 
-  const sendMessage = async () => {
+  const bot = useCallback(async () => {
+    if (role === "m" && botResponse) {
+      try {
+        const botMessage = await botTest(currentMessage);
+        if (botMessage) {
+          const res = await saveMessage("bot", "bot123", room, botMessage);
+          const newMessageData = {
+            name: res.name,
+            room: res.room_id,
+            sender_id: res.sender_id,
+            message_content: res.message_content,
+            sent_at: res.sent_at,
+          };
+          await socket.emit("send_message", newMessageData);
+          setMessageList((list) => [...list, newMessageData]);
+        } else {
+          setBotResponse(false);
+        }
+      } catch (error) {
+        console.error("Error bot sending message:", error);
+      }
+    }
+  }, [botResponse, currentMessage, role, room, socket]);
+
+  const sendMessage = useCallback(async () => {
     if (currentMessage !== "") {
       try {
         const res = await saveMessage(name, username, room, currentMessage);
@@ -39,11 +67,36 @@ function Chat({ socket, name, username, room, role }) {
         await socket.emit("send_message", newMessageData);
         setMessageList((list) => [...list, newMessageData]);
         setCurrentMessage("");
+        bot();
       } catch (error) {
         console.error("Error sending message:", error);
       }
     }
-  };
+  }, [bot, currentMessage, name, room, socket, username]);
+
+  useEffect(() => {
+    if (role === "m" && !botResponse) {
+      Swal.fire({
+        title: "Bot ไม่ตอบสนอง คุณต้องการคุยกับ Admin ไหม?",
+        showCancelButton: true,
+        cancelButtonText: "ไม่ต้องการ",
+        confirmButtonText: "ต้องการ",
+        confirmButtonColor: "#1f5e95",
+        showLoaderOnConfirm: true,
+        allowOutsideClick: () => !Swal.isLoading(),
+      }).then((result) => {
+        if (result.isConfirmed) {
+          setBotResponse(false);
+          Swal.fire({
+            title: "กรุณารอ Admin เข้ามาสักครู่",
+            confirmButtonColor: "#1f5e95",
+          });
+        } else {
+          setBotResponse(true);
+        }
+      });
+    }
+  }, [botResponse, role]);
 
   useEffect(() => {
     if (role) {
@@ -78,6 +131,10 @@ function Chat({ socket, name, username, room, role }) {
   useEffect(() => {
     scrollToBottom();
   }, [messageList]);
+
+  const linkStyle = {
+    textDecoration: "underline",
+  };
 
   return (
     <>
@@ -123,42 +180,74 @@ function Chat({ socket, name, username, room, role }) {
                 </p>
               </div>
               <div className="chat h-[80%] overflow-y-auto overflow-x-hidden px-[20px] w-full">
-                {messageList.map((messageContent, index) => {
-                  return (
-                    <div
-                      key={index}
-                      className={`relative flex ${
-                        username === messageContent.sender_id
-                          ? "justify-end"
-                          : "justify-start"
-                      }`}
+                <Linkify
+                  componentDecorator={(decoratedHref, decoratedText, key) => (
+                    <a
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      href={decoratedHref}
+                      key={key}
+                      style={linkStyle}
                     >
+                      {decoratedText}
+                    </a>
+                  )}
+                >
+                  {messageList.map((messageContent, index) => {
+                    return (
                       <div
-                        className={`${
+                        key={index}
+                        className={`relative flex items-center gap-3 ${
                           username === messageContent.sender_id
-                            ? "bg-[#1f5e95] text-white"
-                            : "bg-[#f1f0f0]"
-                        } rounded-[18px] my-3 py-2 px-3 w-fit max-w-[85%] whitespace-pre-wrap break-words`}
+                            ? "justify-end"
+                            : "justify-start"
+                        }`}
                       >
-                        <p>{messageContent.message_content}</p>
+                        <div
+                          className={`${
+                            messageContent.sender_id === "bot123"
+                              ? ""
+                              : "hidden"
+                          }`}
+                        >
+                          <img
+                            src={botImg}
+                            width={40}
+                            height={40}
+                            alt="bot-icon"
+                            className="select-none rounded-full"
+                          />
+                        </div>
+                        <div
+                          className={`${
+                            username === messageContent.sender_id
+                              ? "bg-[#1f5e95] text-white"
+                              : "bg-[#f1f0f0]"
+                          } rounded-[18px] my-4 py-2 px-3 w-fit max-w-[85%] whitespace-pre-wrap break-words`}
+                        >
+                          <p>{messageContent.message_content}</p>
+                        </div>
+                        <div
+                          className={`${
+                            username === messageContent.sender_id
+                              ? "right-0"
+                              : "left-0"
+                          } absolute  bottom-[-6px] text-[12px] text-[#5E6470]`}
+                        >
+                          {messageContent.sent_at
+                            ? format(
+                                new Date(messageContent.sent_at).toLocaleString(
+                                  "en-US",
+                                  { timeZone: "UTC" }
+                                ),
+                                "d MMM yyyy HH:mm"
+                              )
+                            : ""}
+                        </div>
                       </div>
-                      <div
-                        className={`${
-                          username === messageContent.sender_id
-                            ? "right-0"
-                            : "left-0"
-                        } absolute  bottom-[-6px] text-[12px] text-[#5E6470]`}
-                      >
-                        {messageContent.sent_at
-                          ? format(
-                              new Date(messageContent.sent_at),
-                              "d MMM yyyy HH:mm"
-                            )
-                          : ""}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </Linkify>
               </div>
               <div className="flex gap-2 bg-white items-center px-[20px] w-[95%] h-[50px] absolute m-auto left-0 right-0 bottom-[16px] shadow-[0px_5px_7px_1px_#62618E30] rounded-[15px]">
                 <div className="flex justify-center items-center rounded-full w-[40px] h-[35px] hover:bg-[#f3f6ff] cursor-pointer">

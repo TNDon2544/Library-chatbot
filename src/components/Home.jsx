@@ -16,7 +16,7 @@ function Home() {
   const { roomAdmin } = useRoomAdmin();
   useEffect(() => {
     const newSocket = io.connect(
-      "https://auth-api-backend-411408.uc.r.appspot.com"
+      `${import.meta.env.VITE_API_URL}`
     );
     setSocket(newSocket);
     return () => {
