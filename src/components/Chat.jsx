@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import {
+  CloseOutlined,
   LeftOutlined,
   PaperClipOutlined,
   PictureOutlined,
@@ -28,6 +29,26 @@ function Chat({ socket, name, username, room, role }) {
   const [nameRoom, setNameRoom] = useState("");
   const { roomAdmin, setRoomAdmin } = useRoomAdmin();
   const [botResponse, setBotResponse] = useState(true);
+  const [images, setImages] = useState([]);
+  const [imageURLs, setImageURLs] = useState([]);
+
+  const fileInputRef = useRef(null);
+
+  const clearFileInputValue = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  useEffect(() => {
+    if (images.length < 1) return;
+    const newImageUrls = [];
+    images.forEach((image) => {
+      if (typeof image === "string") return;
+      newImageUrls.push(URL.createObjectURL(image));
+    });
+    setImageURLs(newImageUrls);
+  }, [images]);
 
   const bot = useCallback(async () => {
     if (role === "m" && botResponse) {
@@ -54,25 +75,34 @@ function Chat({ socket, name, username, room, role }) {
   }, [botResponse, currentMessage, role, room, socket]);
 
   const sendMessage = useCallback(async () => {
-    if (currentMessage !== "") {
+    if (currentMessage !== "" || images.length > 0) {
       try {
-        const res = await saveMessage(name, username, room, currentMessage);
+        const res = await saveMessage(
+          name,
+          username,
+          room,
+          currentMessage,
+          images[0]
+        );
         const newMessageData = {
           name: res.name,
           room: res.room_id,
           sender_id: res.sender_id,
           message_content: res.message_content,
           sent_at: res.sent_at,
+          image: res.image,
         };
         await socket.emit("send_message", newMessageData);
         setMessageList((list) => [...list, newMessageData]);
         setCurrentMessage("");
+        setImageURLs([]);
+        clearFileInputValue();
         bot();
       } catch (error) {
         console.error("Error sending message:", error);
       }
     }
-  }, [bot, currentMessage, name, room, socket, username]);
+  }, [bot, currentMessage, images, name, room, socket, username]);
 
   useEffect(() => {
     if (role === "m" && !botResponse) {
@@ -179,7 +209,11 @@ function Chat({ socket, name, username, room, role }) {
                   {role === "a" ? nameRoom : "Library Chatbot"}
                 </p>
               </div>
-              <div className="chat h-[80%] overflow-y-auto overflow-x-hidden px-[20px] w-full">
+              <div
+                className={`${
+                  imageURLs.length > 0 ? "h-[60%]" : "h-[80%]"
+                } chat  overflow-y-auto overflow-x-hidden px-[20px] w-full`}
+              >
                 <Linkify
                   componentDecorator={(decoratedHref, decoratedText, key) => (
                     <a
@@ -195,66 +229,124 @@ function Chat({ socket, name, username, room, role }) {
                 >
                   {messageList.map((messageContent, index) => {
                     return (
-                      <div
-                        key={index}
-                        className={`relative flex items-center gap-3 ${
-                          username === messageContent.sender_id
-                            ? "justify-end"
-                            : "justify-start"
-                        }`}
-                      >
+                      <React.Fragment key={index}>
                         <div
-                          className={`${
-                            messageContent.sender_id === "bot123"
-                              ? ""
-                              : "hidden"
-                          }`}
+                          className={`flex ${
+                            messageContent.message_content ? "pt-5" : "py-5"
+                          } ${
+                            username === messageContent.sender_id
+                              ? "justify-end"
+                              : "justify-start"
+                          } ${messageContent.image ? "" : "hidden"} `}
                         >
                           <img
-                            src={botImg}
-                            width={40}
-                            height={40}
-                            alt="bot-icon"
-                            className="select-none rounded-full"
+                            src={`${import.meta.env.VITE_API_URL}/api/images/${
+                              messageContent.image
+                            }`}
+                            className="rounded-[20px] max-w-[65%]"
+                            alt={messageContent?.image}
                           />
                         </div>
                         <div
-                          className={`${
+                          className={`relative flex items-center gap-3 ${
                             username === messageContent.sender_id
-                              ? "bg-[#1f5e95] text-white"
-                              : "bg-[#f1f0f0]"
-                          } rounded-[18px] my-4 py-2 px-3 w-fit max-w-[85%] whitespace-pre-wrap break-words`}
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
                         >
-                          <p>{messageContent.message_content}</p>
+                          <div
+                            className={`${
+                              messageContent.sender_id === "bot123"
+                                ? ""
+                                : "hidden"
+                            }`}
+                          >
+                            <img
+                              src={botImg}
+                              width={40}
+                              height={40}
+                              alt="bot-icon"
+                              className="select-none rounded-full"
+                            />
+                          </div>
+                          <div
+                            className={`${
+                              username === messageContent.sender_id
+                                ? "bg-[#1f5e95] text-white"
+                                : "bg-[#f1f0f0]"
+                            } ${
+                              messageContent.message_content ? "" : "hidden"
+                            } rounded-[18px] my-4 py-2 px-3 w-fit max-w-[85%] whitespace-pre-wrap break-words`}
+                          >
+                            <p>{messageContent.message_content}</p>
+                          </div>
+                          <div
+                            className={`${
+                              username === messageContent.sender_id
+                                ? "right-0"
+                                : "left-0"
+                            } absolute  bottom-[-6px] text-[12px] text-[#5E6470]`}
+                          >
+                            {messageContent.sent_at
+                              ? format(
+                                  new Date(
+                                    messageContent.sent_at
+                                  ).toLocaleString("en-US", {
+                                    timeZone: "UTC",
+                                  }),
+                                  "d MMM yyyy HH:mm"
+                                )
+                              : ""}
+                          </div>
                         </div>
-                        <div
-                          className={`${
-                            username === messageContent.sender_id
-                              ? "right-0"
-                              : "left-0"
-                          } absolute  bottom-[-6px] text-[12px] text-[#5E6470]`}
-                        >
-                          {messageContent.sent_at
-                            ? format(
-                                new Date(messageContent.sent_at).toLocaleString(
-                                  "en-US",
-                                  { timeZone: "UTC" }
-                                ),
-                                "d MMM yyyy HH:mm"
-                              )
-                            : ""}
-                        </div>
-                      </div>
+                      </React.Fragment>
                     );
                   })}
                 </Linkify>
+              </div>
+              <div className="p-[20px]">
+                {imageURLs?.map((imageSrc, index) => (
+                  <div
+                    key={index}
+                    className="relative w-[81px] h-[81px] rounded-[17px] bg-cover bg-center"
+                    style={{ backgroundImage: `url(${imageSrc})` }}
+                  >
+                    <div className="absolute top-[5px] right-[5px]">
+                      <CloseOutlined
+                        className="text-[#5E6470]"
+                        onClick={() => {
+                          setImageURLs([]);
+                          clearFileInputValue();
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="flex gap-2 bg-white items-center px-[20px] w-[95%] h-[50px] absolute m-auto left-0 right-0 bottom-[16px] shadow-[0px_5px_7px_1px_#62618E30] rounded-[15px]">
                 <div className="flex justify-center items-center rounded-full w-[40px] h-[35px] hover:bg-[#f3f6ff] cursor-pointer">
                   <PaperClipOutlined className="text-[#0185ff] text-[20px]" />
                 </div>
-                <div className="flex justify-center items-center rounded-full w-[40px] h-[35px] hover:bg-[#f3f6ff] cursor-pointer">
-                  <PictureOutlined className="text-[#0185ff] text-[20px]" />
+                <div>
+                  <button
+                    onClick={(event) => {
+                      event.preventDefault();
+                      fileInputRef.current?.click();
+                    }}
+                    className="flex justify-center items-center rounded-full w-[40px] h-[35px] hover:bg-[#f3f6ff] cursor-pointer"
+                  >
+                    <PictureOutlined className="text-[#0185ff] text-[20px]" />
+                  </button>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => {
+                      setImages([...e.target.files]);
+                    }}
+                    style={{ display: "none" }}
+                    ref={fileInputRef}
+                  />
                 </div>
                 <input
                   type="text"
