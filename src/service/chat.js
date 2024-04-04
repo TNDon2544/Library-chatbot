@@ -53,7 +53,7 @@ export async function getChat(room_id) {
 
 export async function uploadFile(formData) {
   try {
-    const res = await postMethod("https://library-api-101.as.r.appspot.com/api/upload", formData, {
+    const res = await axios.post("https://library-api-101.as.r.appspot.com/api/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
         Authorization: `Bearer ${localStorage.getItem("token")}`,
