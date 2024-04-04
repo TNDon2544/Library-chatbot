@@ -5,13 +5,14 @@ const mysql = require("mysql");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
+const moment = require('moment-timezone');
 app.use(cors());
 app.use(express.json());
 
 const server = http.createServer(app);
 // MySQL Connection
 const connection = mysql.createConnection({
-  host: "34.143.237.75",
+  host: "34.143.250.167",
   user: "root",
   password: "Lukw@789",
   database: "chatbot-storage",
@@ -61,6 +62,10 @@ app.post("/api/send", (req, res) => {
     sql,
     [name, sender_id, room_id, message_content],
     (error) => {
+      const utcDate = new Date().toISOString();
+
+      // Convert UTC time to Asia/Bangkok timezone
+      const sent_at = moment().tz('Asia/Bangkok').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]')
       if (error) {
         console.error("Error inserting message:", error);
         return res.status(500).json({ error: "Error inserting message" });
@@ -70,7 +75,7 @@ app.post("/api/send", (req, res) => {
         sender_id,
         room_id,
         message_content,
-        sent_at: new Date(),
+        sent_at,
         message: "Message sent successfully",
       });
     }
@@ -106,6 +111,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(3001, () => {
+server.listen(8080, () => {
   console.log("SERVER RUNNING");
 });
