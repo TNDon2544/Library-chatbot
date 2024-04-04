@@ -1,9 +1,10 @@
 // service/chat.js
 import axios from "axios";
+import { getMethod, postMethod } from "./axiosFetchData";
 
 export async function getRoom() {
   try {
-    const res = await axios.get("http://localhost:3001/api/allroom", {
+    const res = await getMethod("/api/allroom", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
@@ -17,7 +18,7 @@ export async function getRoom() {
 
 export async function saveMessage(name, sender_id, room_id, message_content) {
   try {
-    const res = await axios.post("http://localhost:3001/api/send", {
+    const res = await postMethod("/api/send", {
       name,
       sender_id,
       room_id,
@@ -36,8 +37,7 @@ export async function saveMessage(name, sender_id, room_id, message_content) {
 
 export async function getChat(room_id) {
   try {
-    const res = await axios.get(
-      `http://localhost:3001/api/chat/${room_id}`,
+    const res = await getMethod(`/api/chat/${room_id}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -53,7 +53,7 @@ export async function getChat(room_id) {
 
 export async function uploadFile(formData) {
   try {
-    const res = await axios.post("http://localhost:3001/api/upload", formData, {
+    const res = await postMethod("https://library-api-101.as.r.appspot.com/api/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
         Authorization: `Bearer ${localStorage.getItem("token")}`,
