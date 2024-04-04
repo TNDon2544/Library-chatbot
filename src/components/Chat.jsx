@@ -1,14 +1,19 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { CloseOutlined, LeftOutlined, PaperClipOutlined, PictureOutlined, SendOutlined } from "@ant-design/icons";
+import {
+  CloseOutlined,
+  LeftOutlined,
+  PaperClipOutlined,
+  PictureOutlined,
+  SendOutlined,
+} from "@ant-design/icons";
 import { useRoomAdmin } from "../@hooks/globalState";
 import { getChat, getRoom, saveMessage, uploadFile } from "../service/chat";
 import { format } from "date-fns";
 import Linkify from "react-linkify";
+import { botTest } from "../service/botTest";
 import Swal from "sweetalert2";
 import botImg from "../assets/bot-img.jpg";
-import { botTest } from "../service/botTest";
-
 Chat.propTypes = {
   socket: PropTypes.object.isRequired,
   name: PropTypes.string.isRequired,
@@ -25,8 +30,15 @@ function Chat({ socket, name, username, room, role }) {
   const { roomAdmin, setRoomAdmin } = useRoomAdmin();
   const [botResponse, setBotResponse] = useState(true);
   const [images, setImages] = useState([]);
+  const [imageURLs, setImageURLs] = useState([]);
 
   const fileInputRef = useRef(null);
+
+  const clearFileInputValue = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const isBase64 = (str) => {
     try {
@@ -36,12 +48,15 @@ function Chat({ socket, name, username, room, role }) {
     }
   };
 
-
-  const clearFileInputValue = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+  useEffect(() => {
+    if (images.length < 1) return;
+    const newImageUrls = [];
+    images.forEach((image) => {
+      if (typeof image === "string") return;
+      newImageUrls.push(URL.createObjectURL(image));
+    });
+    setImageURLs(newImageUrls);
+  }, [images]);
 
   const bot = useCallback(async () => {
     if (role === "m" && botResponse) {
@@ -49,7 +64,15 @@ function Chat({ socket, name, username, room, role }) {
         const botMessage = await botTest(currentMessage);
         if (botMessage) {
           const res = await saveMessage("bot", "bot123", room, botMessage);
-          setMessageList((list) => [...list, res]);
+          const newMessageData = {
+            name: res.name,
+            room: res.room_id,
+            sender_id: res.sender_id,
+            message_content: res.message_content,
+            sent_at: res.sent_at,
+          };
+          await socket.emit("send_message", newMessageData);
+          setMessageList((list) => [...list, newMessageData]);
         } else {
           setBotResponse(false);
         }
@@ -57,20 +80,29 @@ function Chat({ socket, name, username, room, role }) {
         console.error("Error bot sending message:", error);
       }
     }
-  }, [botResponse, currentMessage, role, room]);
+  }, [botResponse, currentMessage, role, room, socket]);
 
-  // Function to send a message
   const sendMessage = async () => {
     if (currentMessage !== "" || images.length > 0) {
       try {
         if (images.length > 0) {
-          // Upload image and send message with image URL
           await uploadImage();
         } else {
-          // Send text message
           const res = await saveMessage(name, username, room, currentMessage);
-          setMessageList((list) => [...list, res]);
+          const newMessageData = {
+            name: res.name,
+            room: res.room_id,
+            sender_id: res.sender_id,
+            message_content: res.message_content,
+            sent_at: res.sent_at,
+            file_data: res.file_data,
+          };
+          await socket.emit("send_message", newMessageData);
+          setMessageList((list) => [...list, newMessageData]);
           setCurrentMessage("");
+          setImages([]);
+          setImageURLs([]);
+          clearFileInputValue();
           bot();
         }
       } catch (error) {
@@ -81,14 +113,13 @@ function Chat({ socket, name, username, room, role }) {
     }
   };
 
-  // Function to upload and downscale an image
   const uploadImage = async () => {
     try {
       const formData = new FormData();
       formData.append("name", name);
       formData.append("sender_id", username);
       formData.append("room_id", room);
-      formData.append("message_content", ""); // Empty message content for image uploads
+      formData.append("message_content", currentMessage);
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         // Downscale image
@@ -99,9 +130,19 @@ function Chat({ socket, name, username, room, role }) {
         formData.append("file", downscaledImageBlob);
       }
       const res = await uploadFile(formData);
-      setMessageList((list) => [...list, res]);
+      const newMessageData = {
+        name: res.name,
+        room: res.room_id,
+        sender_id: res.sender_id,
+        message_content: res.message_content,
+        sent_at: res.sent_at,
+        file_data: res.file_data,
+      };
+      await socket.emit("send_message", newMessageData);
+      setMessageList((list) => [...list, newMessageData]);
       setCurrentMessage("");
       setImages([]);
+      setImageURLs([]);
       clearFileInputValue();
       bot();
     } catch (error) {
@@ -173,17 +214,11 @@ function Chat({ socket, name, username, room, role }) {
 
   useEffect(() => {
     const receiveMessageHandler = (data) => {
-      if (data.file_data) {
-        // If it's an image message, add it to the images array
-        setImages((prevImages) => [...prevImages, data.file_data]);
-      } else {
-        // If it's a text message, add it to the message list
-        setMessageList((list) => [...list, data]);
-      }
+      setMessageList((list) => [...list, data]);
     };
-    socket.on("newImage", receiveMessageHandler); // Handle new image messages
+    socket.on("receive_message", receiveMessageHandler);
     return () => {
-      socket.off("newImage", receiveMessageHandler); // Clean up the event listener
+      socket.off("receive_message", receiveMessageHandler);
     };
   }, [socket]);
 
@@ -208,8 +243,9 @@ function Chat({ socket, name, username, room, role }) {
         <div className="px-4 md:flex items-start gap-5 justify-center pt-3 md:pt-4 pb-7 ">
           <div className={`${roomAdmin ? "hidden" : ""}`}>
             <div
-              className={` ${role === "m" ? "hidden" : ""
-                } h-[540px] w-full md:w-[580px] border-[1px] rounded-[15px] p-[20px] flex flex-col gap-3 bg-white`}
+              className={` ${
+                role === "m" ? "hidden" : ""
+              } h-[540px] w-full md:w-[580px] border-[1px] rounded-[15px] p-[20px] flex flex-col gap-3 bg-white`}
             >
               {allRoom?.map((room) => (
                 <div
@@ -230,8 +266,9 @@ function Chat({ socket, name, username, room, role }) {
             <div className="relative w-full md:w-[580px] h-[540px] border-[1px] rounded-[15px] mx-auto overflow-hidden bg-white">
               <div className="px-3 flex justify-start items-center gap-2 shadow-[0px_1px_7px_0px_#62618E30] h-[40px]">
                 <div
-                  className={`${role === "a" ? "" : "hidden"
-                    } flex justify-center items-center rounded-full w-[35px] h-[30px] hover:bg-[#f3f6ff] cursor-pointer`}
+                  className={`${
+                    role === "a" ? "" : "hidden"
+                  } flex justify-center items-center rounded-full w-[35px] h-[30px] hover:bg-[#f3f6ff] cursor-pointer`}
                   onClick={() => {
                     setRoomAdmin("");
                     setMessageList([]);
@@ -244,8 +281,9 @@ function Chat({ socket, name, username, room, role }) {
                 </p>
               </div>
               <div
-                className={`${images.length > 0 ? "h-[60%]" : "h-[80%]"
-                  } chat  overflow-y-auto overflow-x-hidden px-[20px] w-full`}
+                className={`${
+                  imageURLs.length > 0 ? "h-[60%]" : "h-[80%]"
+                } chat  overflow-y-auto overflow-x-hidden px-[20px] w-full`}
               >
                 <Linkify
                   componentDecorator={(decoratedHref, decoratedText, key) => (
@@ -262,42 +300,95 @@ function Chat({ socket, name, username, room, role }) {
                 >
                   {messageList.map((messageContent, index) => {
                     return (
-                      <React.Fragment key={index}>
-                        {messageContent.message_content && (
-                          <div
-                            className={`relative flex items-center gap-3 ${username === messageContent.sender_id ? "justify-end" : "justify-start"}`}
-                          >
-                            <div className={`${messageContent.sender_id === "bot123" ? "" : "hidden"}`}>
-                              <img src={botImg} width={40} height={40} alt="bot-icon" className="select-none rounded-full" />
-                            </div>
-                            <div className={`${username === messageContent.sender_id ? "bg-[#1f5e95] text-white" : "bg-[#f1f0f0]"} ${messageContent.message_content ? "" : "hidden"} rounded-[18px] my-4 py-2 px-3 w-fit max-w-[85%] whitespace-pre-wrap break-words`}>
-                              <p>{messageContent.message_content}</p>
-                            </div>
-                            <div className={`${username === messageContent.sender_id ? "right-0" : "left-0"} absolute bottom-[-6px] text-[12px] text-[#5E6470]`}>
-                              {messageContent.sent_at ? format(new Date(messageContent.sent_at).toLocaleString("en-US", { timeZone: "UTC" }), "d MMM yyyy HH:mm") : ""}
-                            </div>
-                          </div>
-                        )}
+                      <div className="relative" key={index}>
                         {messageContent.file_data && (
-                          <div className={`flex ${messageContent.message_content ? "pt-5" : "py-5"} ${username === messageContent.sender_id ? "justify-end" : "justify-start"}`}>
+                          <div
+                            className={`flex ${
+                              messageContent.message_content ? "pt-5" : "py-5"
+                            } ${
+                              username === messageContent.sender_id
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
+                          >
                             {/* Check if the file data is a base64 string */}
                             {isBase64(messageContent.file_data) ? (
                               // Display the image using base64 data
-                              <img src={`data:image/jpeg;base64,${messageContent.file_data}`} className="rounded-[20px] max-w-[65%]" alt="Uploaded File" />
+                              <img
+                                src={`data:image/jpeg;base64,${messageContent.file_data}`}
+                                className="rounded-[20px] max-w-[65%]"
+                                alt="Uploaded File"
+                              />
                             ) : (
                               // Display the image using the file data URL
-                              <img src={messageContent.file_data} className="rounded-[20px] max-w-[65%]" alt="Uploaded File" />
+                              <img
+                                src={messageContent.file_data}
+                                className="rounded-[20px] max-w-[65%]"
+                                alt="Uploaded File"
+                              />
                             )}
                           </div>
                         )}
-
-                      </React.Fragment>
+                        <div
+                          className={`flex items-center gap-3 ${
+                            username === messageContent.sender_id
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
+                        >
+                          <div
+                            className={`${
+                              messageContent.sender_id === "bot123"
+                                ? ""
+                                : "hidden"
+                            }`}
+                          >
+                            <img
+                              src={botImg}
+                              width={40}
+                              height={40}
+                              alt="bot-icon"
+                              className="select-none rounded-full"
+                            />
+                          </div>
+                          <div
+                            className={`${
+                              username === messageContent.sender_id
+                                ? "bg-[#1f5e95] text-white"
+                                : "bg-[#f1f0f0]"
+                            } ${
+                              messageContent.message_content ? "" : "hidden"
+                            } rounded-[18px] my-4 py-2 px-3 w-fit max-w-[85%] whitespace-pre-wrap break-words`}
+                          >
+                            <p>{messageContent.message_content}</p>
+                          </div>
+                        </div>
+                        <div
+                          className={`${
+                            username === messageContent.sender_id
+                              ? "right-0"
+                              : "left-0"
+                          } absolute  bottom-[-6px] text-[12px] text-[#5E6470]`}
+                        >
+                          {messageContent.sent_at
+                            ? format(
+                                new Date(messageContent.sent_at).toLocaleString(
+                                  "en-US",
+                                  {
+                                    timeZone: "UTC",
+                                  }
+                                ),
+                                "d MMM yyyy HH:mm"
+                              )
+                            : ""}
+                        </div>
+                      </div>
                     );
                   })}
                 </Linkify>
               </div>
               <div className="p-[20px]">
-                {images?.map((imageSrc, index) => (
+                {imageURLs?.map((imageSrc, index) => (
                   <div
                     key={index}
                     className="relative w-[81px] h-[81px] rounded-[17px] bg-cover bg-center"
@@ -307,7 +398,8 @@ function Chat({ socket, name, username, room, role }) {
                       <CloseOutlined
                         className="text-[#5E6470]"
                         onClick={() => {
-                          setImages((prevImages) => prevImages.filter((_, i) => i !== index));
+                          setImageURLs([]);
+                          clearFileInputValue();
                         }}
                       />
                     </div>
