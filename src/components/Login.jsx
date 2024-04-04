@@ -48,11 +48,7 @@ function Login() {
   const getlogin = async (username, password) => {
     try {
       const response = await axios.post(
-<<<<<<< HEAD
         "https://library-api-101.as.r.appspot.com/login",
-=======
-        `${import.meta.env.VITE_API_URL}/login`,
->>>>>>> 894f7adf8931b15c6ff0f9af5a5a79a7cd45d70d
         { username, password }
       );
       // console.log("Authentication Response:", response.data);
