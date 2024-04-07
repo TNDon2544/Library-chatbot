@@ -124,6 +124,7 @@ function Chat({ socket, name, username, room, role }) {
       console.warn("Cannot send empty message");
     }
   };
+
   const uploadImage = async () => {
     try {
       const formData = new FormData();
@@ -150,7 +151,7 @@ function Chat({ socket, name, username, room, role }) {
         sent_at: res.sent_at,
         file_data: res.file_data,
         file_name: res.file_name,
-        file_type: res.file_type
+        file_type: res.file_type,
       };
       // console.log("res uploadImage", res);
       // console.log("newMessageData uploadImage", newMessageData);
@@ -185,10 +186,10 @@ function Chat({ socket, name, username, room, role }) {
         sent_at: res.sent_at,
         file_data: res.file_data,
         file_name: res.file_name,
-        file_type: res.file_type
+        file_type: res.file_type,
       };
-      console.log("res uploadfile", res);
-      console.log("newMessageData uploadfile", newMessageData);
+      // console.log("res uploadfile", res);
+      // console.log("newMessageData uploadfile", newMessageData);
       await socket.emit("send_message", newMessageData);
       setMessageList((list) => [...list, newMessageData]);
       setCurrentMessage("");
@@ -249,7 +250,7 @@ function Chat({ socket, name, username, room, role }) {
     }
   }, [botResponse, role]);
 
-  useEffect(() => {
+  const getChatFunction = useCallback(() => {
     if (role) {
       if (role === "a") {
         if (roomAdmin) {
@@ -261,6 +262,18 @@ function Chat({ socket, name, username, room, role }) {
       }
     }
   }, [role, roomAdmin, username]);
+
+  const downloadFile = useCallback((file_url, file_name) => {
+    const downloadLink = document.createElement("a");
+    downloadLink.href = file_url;
+    downloadLink.download = file_name;
+    downloadLink.click();
+    URL.revokeObjectURL(file_url);
+  }, []);
+
+  useEffect(() => {
+    getChatFunction();
+  }, [getChatFunction]);
 
   useEffect(() => {
     const receiveMessageHandler = (data) => {
@@ -404,9 +417,24 @@ function Chat({ socket, name, username, room, role }) {
                               username === messageContent.sender_id
                                 ? "justify-end"
                                 : "justify-start"
-                            } ${messageContent.file_data  ? "" : "hidden"}`}
+                            } ${messageContent.file_data ? "" : "hidden"}`}
                           >
-                            <div className="hover:cursor-pointer w-[40%] px-3 py-2 flex items-center gap-2 rounded-[13px] bg-[#f0f0f0]">
+                            <div
+                              onClick={() => {
+                                if (isBase64(messageContent.file_data)) {
+                                  downloadFile(
+                                    `data:${messageContent.file_type};base64,${messageContent.file_data}`,
+                                    messageContent.file_name
+                                  );
+                                } else {
+                                  downloadFile(
+                                    messageContent.file_data,
+                                    messageContent.file_name
+                                  );
+                                }
+                              }}
+                              className="hover:cursor-pointer w-[40%] px-3 py-2 flex items-center gap-2 rounded-[13px] bg-[#f0f0f0]"
+                            >
                               <div className="w-[20%] h-9 rounded-full flex justify-center items-center bg-[#c4c4c4]">
                                 <FileTextOutlined className="text-[20px]" />
                               </div>
