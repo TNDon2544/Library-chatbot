@@ -6,6 +6,7 @@ import {
   PaperClipOutlined,
   PictureOutlined,
   SendOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { useRoomAdmin } from "../@hooks/globalState";
 import { getChat, getRoom, saveMessage, uploadFile } from "../service/chat";
@@ -31,8 +32,16 @@ function Chat({ socket, name, username, room, role }) {
   const [botResponse, setBotResponse] = useState(true);
   const [images, setImages] = useState([]);
   const [imageURLs, setImageURLs] = useState([]);
+  const [file, setFile] = useState([]);
 
+  const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  const clearImageInputValue = () => {
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  };
 
   const clearFileInputValue = () => {
     if (fileInputRef.current) {
@@ -83,10 +92,12 @@ function Chat({ socket, name, username, room, role }) {
   }, [botResponse, currentMessage, role, room, socket]);
 
   const sendMessage = async () => {
-    if (currentMessage !== "" || images.length > 0) {
+    if (currentMessage !== "" || images.length > 0 || file.length > 0) {
       try {
         if (images.length > 0) {
           await uploadImage();
+        } else if (file.length > 0) {
+          await uploadFileInput();
         } else {
           const res = await saveMessage(name, username, room, currentMessage);
           const newMessageData = {
@@ -95,14 +106,15 @@ function Chat({ socket, name, username, room, role }) {
             sender_id: res.sender_id,
             message_content: res.message_content,
             sent_at: res.sent_at,
-            file_data: res.file_data,
           };
+          // console.log("res send", res);
+          // console.log("newMessageData send", newMessageData);
           await socket.emit("send_message", newMessageData);
           setMessageList((list) => [...list, newMessageData]);
           setCurrentMessage("");
           setImages([]);
           setImageURLs([]);
-          clearFileInputValue();
+          clearImageInputValue();
           bot();
         }
       } catch (error) {
@@ -112,7 +124,6 @@ function Chat({ socket, name, username, room, role }) {
       console.warn("Cannot send empty message");
     }
   };
-
   const uploadImage = async () => {
     try {
       const formData = new FormData();
@@ -120,6 +131,7 @@ function Chat({ socket, name, username, room, role }) {
       formData.append("sender_id", username);
       formData.append("room_id", room);
       formData.append("message_content", currentMessage);
+      formData.append("file_name", images[0].name);
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         // Downscale image
@@ -137,18 +149,56 @@ function Chat({ socket, name, username, room, role }) {
         message_content: res.message_content,
         sent_at: res.sent_at,
         file_data: res.file_data,
+        file_name: res.file_name,
+        file_type: res.file_type
       };
+      // console.log("res uploadImage", res);
+      // console.log("newMessageData uploadImage", newMessageData);
       await socket.emit("send_message", newMessageData);
       setMessageList((list) => [...list, newMessageData]);
       setCurrentMessage("");
       setImages([]);
       setImageURLs([]);
-      clearFileInputValue();
+      clearImageInputValue();
       bot();
     } catch (error) {
       console.error("Error uploading image:", error);
     }
   };
+
+  const uploadFileInput = useCallback(async () => {
+    try {
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("sender_id", username);
+      formData.append("room_id", room);
+      formData.append("message_content", currentMessage);
+      formData.append("file", file[0]);
+      formData.append("file_name", file[0].name);
+
+      const res = await uploadFile(formData);
+      const newMessageData = {
+        name: res.name,
+        room: res.room_id,
+        sender_id: res.sender_id,
+        message_content: res.message_content,
+        sent_at: res.sent_at,
+        file_data: res.file_data,
+        file_name: res.file_name,
+        file_type: res.file_type
+      };
+      console.log("res uploadfile", res);
+      console.log("newMessageData uploadfile", newMessageData);
+      await socket.emit("send_message", newMessageData);
+      setMessageList((list) => [...list, newMessageData]);
+      setCurrentMessage("");
+      setFile([]);
+      clearFileInputValue();
+      bot();
+    } catch (error) {
+      console.error("Error uploading image:", error);
+    }
+  }, [bot, currentMessage, file, name, room, socket, username]);
 
   // Function to downscale an image
   const downscaleImage = async (image) => {
@@ -229,6 +279,17 @@ function Chat({ socket, name, username, room, role }) {
     }
   };
 
+  const checkFileSize = (file) => {
+    const maxSizeInBytes = 10 * 1024 * 1024; // 10 MB
+    return new Promise((resolve, reject) => {
+      if (file.size <= maxSizeInBytes) {
+        resolve(file);
+      } else {
+        reject(new Error("File size exceeds the maximum allowed size."));
+      }
+    });
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messageList]);
@@ -282,7 +343,9 @@ function Chat({ socket, name, username, room, role }) {
               </div>
               <div
                 className={`${
-                  imageURLs.length > 0 ? "h-[60%]" : "h-[80%]"
+                  imageURLs.length > 0 || file.length > 0
+                    ? "h-[60%]"
+                    : "h-[80%]"
                 } chat  overflow-y-auto overflow-x-hidden px-[20px] w-full`}
               >
                 <Linkify
@@ -301,7 +364,8 @@ function Chat({ socket, name, username, room, role }) {
                   {messageList.map((messageContent, index) => {
                     return (
                       <div className="relative" key={index}>
-                        {messageContent.file_data && (
+                        {messageContent.file_data &&
+                        messageContent.file_type === "image/jpeg" ? (
                           <div
                             className={`flex ${
                               messageContent.message_content ? "pt-5" : "py-5"
@@ -317,16 +381,41 @@ function Chat({ socket, name, username, room, role }) {
                               <img
                                 src={`data:image/jpeg;base64,${messageContent.file_data}`}
                                 className="rounded-[20px] max-w-[65%]"
-                                alt="Uploaded File"
+                                alt={
+                                  messageContent.file_name || "Uploaded File"
+                                }
                               />
                             ) : (
                               // Display the image using the file data URL
                               <img
                                 src={messageContent.file_data}
                                 className="rounded-[20px] max-w-[65%]"
-                                alt="Uploaded File"
+                                alt={
+                                  messageContent.file_name || "Uploaded File"
+                                }
                               />
                             )}
+                          </div>
+                        ) : (
+                          <div
+                            className={`flex ${
+                              messageContent.message_content ? "pt-5" : "py-5"
+                            } ${
+                              username === messageContent.sender_id
+                                ? "justify-end"
+                                : "justify-start"
+                            } ${messageContent.file_data  ? "" : "hidden"}`}
+                          >
+                            <div className="hover:cursor-pointer w-[40%] px-3 py-2 flex items-center gap-2 rounded-[13px] bg-[#f0f0f0]">
+                              <div className="w-[20%] h-9 rounded-full flex justify-center items-center bg-[#c4c4c4]">
+                                <FileTextOutlined className="text-[20px]" />
+                              </div>
+                              <div className="w-[80%] line-clamp-2 break-words">
+                                {messageContent.file_name
+                                  ? messageContent.file_name
+                                  : ""}
+                              </div>
+                            </div>
                           </div>
                         )}
                         <div
@@ -396,20 +485,36 @@ function Chat({ socket, name, username, room, role }) {
                   >
                     <div className="absolute top-[5px] right-[5px]">
                       <CloseOutlined
-                        className="text-[#5E6470]"
+                        className="text-[#5E6470] hover:text-[#8e94a1]"
                         onClick={() => {
                           setImageURLs([]);
-                          clearFileInputValue();
+                          clearImageInputValue();
                         }}
                       />
                     </div>
                   </div>
                 ))}
+                {file.length > 0 && (
+                  <div className="relative w-[40%] px-3 py-2 flex items-center gap-2 rounded-[13px] bg-[#f0f0f0]">
+                    <div className="w-[20%] h-9 rounded-full flex justify-center items-center bg-[#c4c4c4]">
+                      <FileTextOutlined className="text-[20px]" />
+                    </div>
+                    <div className="w-[80%] line-clamp-2 break-words">
+                      {file[0].name}
+                    </div>
+                    <div className="absolute w-6 h-6 rounded-full bg-[#dddfe2] hover:bg-[#eaecee] flex justify-center items-center top-[-8px] right-[-5px]">
+                      <CloseOutlined
+                        className="text-[#5E6470]"
+                        onClick={() => {
+                          setFile([]);
+                          clearFileInputValue();
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 bg-white items-center px-[20px] w-[95%] h-[50px] absolute m-auto left-0 right-0 bottom-[16px] shadow-[0px_5px_7px_1px_#62618E30] rounded-[15px]">
-                <div className="flex justify-center items-center rounded-full w-[40px] h-[35px] hover:bg-[#f3f6ff] cursor-pointer">
-                  <PaperClipOutlined className="text-[#0185ff] text-[20px]" />
-                </div>
                 <div>
                   <button
                     onClick={(event) => {
@@ -418,17 +523,61 @@ function Chat({ socket, name, username, room, role }) {
                     }}
                     className="flex justify-center items-center rounded-full w-[40px] h-[35px] hover:bg-[#f3f6ff] cursor-pointer"
                   >
+                    <PaperClipOutlined className="text-[#0185ff] text-[20px]" />
+                  </button>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                    onChange={(e) => {
+                      clearImageInputValue();
+                      setImageURLs([]);
+                      setImages([]);
+                      checkFileSize(...e.target.files)
+                        .then(() => setFile([...e.target.files]))
+                        .catch(() =>
+                          Swal.fire({
+                            title: "",
+                            text: "ไฟล์ มีขนาดใหญ่เกิน 10 MB กรุณาเลือกไฟล์ใหม่",
+                            icon: "error",
+                            confirmButtonColor: "#1f5e95",
+                            confirmButtonText: "OK",
+                          })
+                        );
+                    }}
+                    style={{ display: "none" }}
+                    ref={fileInputRef}
+                  />
+                </div>
+                <div>
+                  <button
+                    onClick={(event) => {
+                      event.preventDefault();
+                      imageInputRef.current?.click();
+                    }}
+                    className="flex justify-center items-center rounded-full w-[40px] h-[35px] hover:bg-[#f3f6ff] cursor-pointer"
+                  >
                     <PictureOutlined className="text-[#0185ff] text-[20px]" />
                   </button>
                   <input
                     type="file"
-                    multiple
                     accept="image/*"
                     onChange={(e) => {
-                      setImages([...e.target.files]);
+                      clearFileInputValue();
+                      setFile([]);
+                      checkFileSize(...e.target.files)
+                        .then(() => setImages([...e.target.files]))
+                        .catch(() =>
+                          Swal.fire({
+                            title: "",
+                            text: "รูป มีขนาดใหญ่เกิน 10 MB กรุณาเลือกรูปใหม่",
+                            icon: "error",
+                            confirmButtonColor: "#1f5e95",
+                            confirmButtonText: "OK",
+                          })
+                        );
                     }}
                     style={{ display: "none" }}
-                    ref={fileInputRef}
+                    ref={imageInputRef}
                   />
                 </div>
                 <input
