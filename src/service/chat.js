@@ -12,6 +12,16 @@ export async function getRoom() {
   }
 }
 
+export async function getNotification() {
+  try {
+    const res = await getMethod("/api/notification");
+    return res;
+  } catch (error) {
+    console.error("Error:", error);
+    throw error;
+  }
+}
+
 export async function saveMessage(name, sender_id, room_id, message_content) {
   try {
     const res = await postMethod(
@@ -31,6 +41,27 @@ export async function saveMessage(name, sender_id, room_id, message_content) {
     return res?.data;
   } catch (error) {
     console.error("Error saving message:", error);
+    throw error;
+  }
+}
+
+export async function sendNotification(name, id_user) {
+  try {
+    const res = await postMethod(
+      "/api/send/notification",
+      {
+        name,
+        id_user,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+    return res?.data;
+  } catch (error) {
+    console.error("Error send notification:", error);
     throw error;
   }
 }

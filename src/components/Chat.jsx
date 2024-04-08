@@ -8,8 +8,14 @@ import {
   SendOutlined,
   FileTextOutlined,
 } from "@ant-design/icons";
-import { useRoomAdmin } from "../@hooks/globalState";
-import { getChat, getRoom, saveMessage, uploadFile } from "../service/chat";
+import { useNameRoomAdmin, useRoomAdmin } from "../@hooks/globalState";
+import {
+  getChat,
+  getRoom,
+  saveMessage,
+  sendNotification,
+  uploadFile,
+} from "../service/chat";
 import { format } from "date-fns";
 import Linkify from "react-linkify";
 import { botTest } from "../service/botTest";
@@ -27,8 +33,8 @@ function Chat({ socket, name, username, room, role }) {
   const [currentMessage, setCurrentMessage] = useState("");
   const [messageList, setMessageList] = useState([]);
   const [allRoom, setAllRoom] = useState([]);
-  const [nameRoom, setNameRoom] = useState("");
   const { roomAdmin, setRoomAdmin } = useRoomAdmin();
+  const { nameRoomAdmin, setNameRoomAdmin } = useNameRoomAdmin();
   const [botResponse, setBotResponse] = useState(true);
   const [images, setImages] = useState([]);
   const [imageURLs, setImageURLs] = useState([]);
@@ -235,6 +241,24 @@ function Chat({ socket, name, username, room, role }) {
         confirmButtonText: "ต้องการ",
         confirmButtonColor: "#1f5e95",
         showLoaderOnConfirm: true,
+        preConfirm: () => {
+          try {
+            sendNotification(name, username).then(async (result) => {
+              const newNotificationData = {
+                create_time: result.create_time,
+                id_user: result.id_user,
+                message: result.message,
+                name: result.name,
+              };
+              await socket.emit("send_notification", newNotificationData);
+            });
+          } catch (error) {
+            Swal.showValidationMessage(`
+              Request failed: ${error}
+            `);
+          }
+        },
+
         allowOutsideClick: () => !Swal.isLoading(),
       }).then((result) => {
         if (result.isConfirmed) {
@@ -248,7 +272,7 @@ function Chat({ socket, name, username, room, role }) {
         }
       });
     }
-  }, [botResponse, role]);
+  }, [botResponse, name, role, socket, username]);
 
   const getChatFunction = useCallback(() => {
     if (role) {
@@ -328,7 +352,7 @@ function Chat({ socket, name, username, room, role }) {
                   onClick={() => {
                     socket.emit("leave_room", roomAdmin);
                     setRoomAdmin(room.room_id);
-                    setNameRoom(room.room_name);
+                    setNameRoomAdmin(room.room_name);
                   }}
                 >
                   {room.room_name}
@@ -351,7 +375,7 @@ function Chat({ socket, name, username, room, role }) {
                   <LeftOutlined className="text-[#0185ff] text-[20px]" />
                 </div>
                 <p className="font-[500] text-[17px] text-[#5E6470]">
-                  {role === "a" ? nameRoom : "Library Chatbot"}
+                  {role === "a" ? nameRoomAdmin : "Library Chatbot"}
                 </p>
               </div>
               <div
