@@ -1,6 +1,6 @@
 // service/chat.js
 import axios from "axios";
-import { getMethod, postMethod } from "./axiosFetchData";
+import { deleteMethod, getMethod, postMethod } from "./axiosFetchData";
 
 export async function getRoom() {
   try {
@@ -32,11 +32,7 @@ export async function saveMessage(name, sender_id, room_id, message_content) {
         room_id,
         message_content,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      }
+      "token"
     );
     return res?.data;
   } catch (error) {
@@ -53,15 +49,21 @@ export async function sendNotification(name, id_user) {
         name,
         id_user,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      }
+      "token"
     );
     return res?.data;
   } catch (error) {
     console.error("Error send notification:", error);
+    throw error;
+  }
+}
+
+export async function deleteNotification(id_notification) {
+  try {
+    const res = await deleteMethod(`/api/delete-notifications/${id_notification}`);
+    return res?.data;
+  } catch (error) {
+    console.error("Error send delete Notification:", error);
     throw error;
   }
 }

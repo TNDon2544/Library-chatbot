@@ -32,7 +32,7 @@ function Home() {
 
   useEffect(() => {
     getNotification().then((result) => setNotification(result.data));
-  }, []);
+  }, [popupNotificationOpen]);
 
   useEffect(() => {
     if (username !== "" && socket && role === "m") {
@@ -43,7 +43,7 @@ function Home() {
   }, [username, socket, role, roomAdmin]);
 
   useEffect(() => {
-    if (socket) {
+    if (socket && role && role === "a") {
       const receiveNotificationHandler = (data) => {
         setNotification((list) => [...list, data]);
       };
@@ -52,7 +52,7 @@ function Home() {
         socket.off("receive_notification", receiveNotificationHandler);
       };
     }
-  }, [socket]);
+  }, [role, socket]);
 
   return (
     <div>
@@ -79,7 +79,11 @@ function Home() {
           <div className="z-[1] opacity-0 group-hover:opacity-100 duration-300 absolute top-[40px] bg-white border-[1px] border-[#B5C8DB] px-2 text-[#004370] text-sm font-[600] whitespace-nowrap ">
             Notification
           </div>
-          <div className="absolute top-[-14px] right-[-6px] w-fit h-[25px] flex justify-center items-center px-2 bg-[#FF0000] border-[1px] border-white text-white rounded-full">
+          <div
+            className={`${
+              notification.length > 0 ? "" : "hidden"
+            } absolute top-[-14px] right-[-6px] w-fit h-[25px] flex justify-center items-center px-2 bg-[#FF0000] border-[1px] border-white text-white rounded-full`}
+          >
             {notification.length}
           </div>
         </button>

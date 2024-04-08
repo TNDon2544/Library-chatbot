@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { BellOutlined } from "@ant-design/icons";
 import { useNameRoomAdmin, useRoomAdmin } from "../@hooks/globalState";
 import { useEffect } from "react";
+import { deleteNotification } from "../service/chat";
 
 PopupNotification.propTypes = {
   socket: PropTypes.object.isRequired,
@@ -15,10 +16,11 @@ function PopupNotification({ closePopup, socket, notification }) {
   const { roomAdmin, setRoomAdmin } = useRoomAdmin();
   const { setNameRoomAdmin } = useNameRoomAdmin();
 
-  const handleClickNotification = (room_id, room_name) => {
+  const handleClickNotification = (room_id, room_name, id_notification) => {
     socket.emit("leave_room", roomAdmin);
     setRoomAdmin(room_id);
     setNameRoomAdmin(room_name);
+    deleteNotification(id_notification);
     closePopup();
   };
 
@@ -28,6 +30,7 @@ function PopupNotification({ closePopup, socket, notification }) {
       document.documentElement.style.overflow = "auto";
     };
   }, []);
+  
   return (
     <div className="fixed top-0 bottom-0 left-0 right-0 flex justify-center content-center">
       <div
@@ -42,21 +45,25 @@ function PopupNotification({ closePopup, socket, notification }) {
           <CloseOutlined />
         </div>
         <div className="absolute top-2 left-5 md:left-9 font-[500] text-lg">
-        การแจ้งเตือน
+          การแจ้งเตือน
         </div>
         <div className="mt-7 md:mt-3 p-3 md:p-7">
           <div className="lg:pt-4 h-[250px] overflow-auto">
-            {notification?.map((item,index) => (
+            {notification?.map((item, index) => (
               <div
-                onClick={() => handleClickNotification(item.id_user, item.name)}
+                onClick={() =>
+                  handleClickNotification(item.id_user, item.name, item.id)
+                }
                 key={index}
                 className="cursor-pointer hover:bg-[#5A6ACE26] hover:rounded-[10px] p-2 flex items-start gap-5 border-b-[1px]"
               >
-                <div className="flex items-center gap-2 border-[#E0E0E0] pb-1">
-                  <div className="flex justify-center items-center bg-[#1f5e95] w-9 h-9 rounded-full">
-                    <BellOutlined className="text-[20px] text-white" />
+                <div className="flex items-center gap-2 border-[#E0E0E0] pb-1 w-full">
+                  <div className="w-[15%]">
+                    <div className="flex justify-center items-center bg-[#1f5e95] w-9 h-9 rounded-full">
+                      <BellOutlined className="text-[20px] text-white" />
+                    </div>
                   </div>
-                  <div>
+                  <div className="w-[85%]">
                     <div className="font-[500]">
                       {item.name} ต้องการคุยกับ Admin
                     </div>

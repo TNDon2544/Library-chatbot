@@ -167,7 +167,7 @@ function Chat({ socket, name, username, room, role }) {
       setImages([]);
       setImageURLs([]);
       clearImageInputValue();
-      bot();
+      // bot();
     } catch (error) {
       console.error("Error uploading image:", error);
     }
@@ -201,11 +201,11 @@ function Chat({ socket, name, username, room, role }) {
       setCurrentMessage("");
       setFile([]);
       clearFileInputValue();
-      bot();
+      // bot();
     } catch (error) {
       console.error("Error uploading image:", error);
     }
-  }, [bot, currentMessage, file, name, room, socket, username]);
+  }, [currentMessage, file, name, room, socket, username]);
 
   // Function to downscale an image
   const downscaleImage = async (image) => {
