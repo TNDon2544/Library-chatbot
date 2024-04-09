@@ -16,11 +16,15 @@ function PopupNotification({ closePopup, socket, notification }) {
   const { roomAdmin, setRoomAdmin } = useRoomAdmin();
   const { setNameRoomAdmin } = useNameRoomAdmin();
 
-  const handleClickNotification = (room_id, room_name, id_notification) => {
+  const handleClickNotification = async (
+    room_id,
+    room_name,
+    id_notification
+  ) => {
     socket.emit("leave_room", roomAdmin);
     setRoomAdmin(room_id);
     setNameRoomAdmin(room_name);
-    deleteNotification(id_notification);
+    await deleteNotification(id_notification);
     closePopup();
   };
 
@@ -30,7 +34,7 @@ function PopupNotification({ closePopup, socket, notification }) {
       document.documentElement.style.overflow = "auto";
     };
   }, []);
-  
+
   return (
     <div className="fixed top-0 bottom-0 left-0 right-0 flex justify-center content-center">
       <div
