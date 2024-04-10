@@ -74,7 +74,7 @@ export async function botApi(sender, message) {
     );
     return res?.data;
   } catch (error) {
-    console.error("Error send notification:", error);
+    console.error("Error bot sending message:", error);
     throw error;
   }
 }
