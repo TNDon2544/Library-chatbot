@@ -10,6 +10,7 @@ import {
 } from "@ant-design/icons";
 import { useNameRoomAdmin, useRoomAdmin } from "../@hooks/globalState";
 import {
+  botApi,
   getChat,
   getRoom,
   saveMessage,
@@ -18,7 +19,6 @@ import {
 } from "../service/chat";
 import { format } from "date-fns";
 import Linkify from "react-linkify";
-import { botTest } from "../service/botTest";
 import Swal from "sweetalert2";
 import botImg from "../assets/bot-img.jpg";
 Chat.propTypes = {
@@ -76,9 +76,14 @@ function Chat({ socket, name, username, room, role }) {
   const bot = useCallback(async () => {
     if (role === "m" && botResponse) {
       try {
-        const botMessage = await botTest(currentMessage);
-        if (botMessage) {
-          const res = await saveMessage("bot", "bot123", room, botMessage);
+        const botMessage = await botApi(username, currentMessage);
+        if (botMessage.length > 0) {
+          const res = await saveMessage(
+            "bot",
+            "bot123",
+            room,
+            botMessage[0].text
+          );
           const newMessageData = {
             name: res.name,
             room: res.room_id,
@@ -95,7 +100,7 @@ function Chat({ socket, name, username, room, role }) {
         console.error("Error bot sending message:", error);
       }
     }
-  }, [botResponse, currentMessage, role, room, socket]);
+  }, [botResponse, currentMessage, role, room, socket, username]);
 
   const sendMessage = async () => {
     if (currentMessage !== "" || images.length > 0 || file.length > 0) {

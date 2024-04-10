@@ -58,9 +58,32 @@ export async function sendNotification(name, id_user) {
   }
 }
 
+export async function botApi(sender, message) {
+  try {
+    const res = await axios.post(
+      "http://34.124.212.127:5005/webhooks/rest/webhook",
+      {
+        sender: sender,
+        message: message,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+    return res?.data;
+  } catch (error) {
+    console.error("Error send notification:", error);
+    throw error;
+  }
+}
+
 export async function deleteNotification(id_notification) {
   try {
-    const res = await deleteMethod(`/api/delete-notifications/${id_notification}`);
+    const res = await deleteMethod(
+      `/api/delete-notifications/${id_notification}`
+    );
     return res?.data;
   } catch (error) {
     console.error("Error send delete Notification:", error);
