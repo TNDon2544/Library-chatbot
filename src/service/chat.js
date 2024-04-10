@@ -60,17 +60,13 @@ export async function sendNotification(name, id_user) {
 
 export async function botApi(sender, message) {
   try {
-    const res = await axios.post(
-      "http://34.124.212.127:5005/webhooks/rest/webhook",
+    const res = await postMethod(
+      "/api/chatbot",
       {
-        sender: sender,
-        message: message,
+        sender,
+        message,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      }
+      "token"
     );
     return res?.data;
   } catch (error) {
