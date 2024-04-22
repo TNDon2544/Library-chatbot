@@ -57,7 +57,7 @@ function Home() {
   return (
     <div>
       <Navbar />
-      <div className="flex justify-end items-center gap-4 w-full md:w-[580px] mx-auto px-8 pt-5">
+      <div className="flex justify-end items-center gap-4 w-full md:w-[680px] lg:w-[880px] mx-auto px-8 pt-5">
         <button
           onClick={() => setPopupOpen(true)}
           className={`${
