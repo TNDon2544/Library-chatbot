@@ -142,6 +142,9 @@ function Chat({ socket, name, username, room, role }) {
           await uploadFileInput();
         } else {
           const res = await saveMessage(name, username, room, currentMessage);
+          if (role === "a") {
+            handleUpdateIsRead(roomAdmin);
+          }
           const newMessageData = {
             name: res.name,
             room: res.room_id,
@@ -185,6 +188,9 @@ function Chat({ socket, name, username, room, role }) {
         formData.append("file", downscaledImageBlob);
       }
       const res = await uploadFile(formData);
+      if (role === "a") {
+        handleUpdateIsRead(roomAdmin);
+      }
       const newMessageData = {
         name: res.name,
         room: res.room_id,
@@ -220,6 +226,9 @@ function Chat({ socket, name, username, room, role }) {
       formData.append("file_name", file[0].name);
 
       const res = await uploadFile(formData);
+      if (role === "a") {
+        handleUpdateIsRead(roomAdmin);
+      }
       const newMessageData = {
         name: res.name,
         room: res.room_id,
@@ -241,7 +250,7 @@ function Chat({ socket, name, username, room, role }) {
     } catch (error) {
       console.error("Error uploading image:", error);
     }
-  }, [currentMessage, file, name, room, socket, username]);
+  }, [currentMessage, file, name, role, room, roomAdmin, socket, username]);
 
   // Function to downscale an image
   const downscaleImage = async (image) => {
@@ -351,13 +360,19 @@ function Chat({ socket, name, username, room, role }) {
     });
   };
 
-  const handleUpdateIsRead = async () => {
+  const handleUpdateIsRead = async (room_id) => {
     try {
-      await putMethod(`/api/update-is-read`, { roomAdmin });
+      await putMethod(`/api/update-is-read`, { room_id: room_id });
     } catch (error) {
       console.error("Error update is read:", error);
     }
   };
+
+  useEffect(() => {
+    if (roomAdmin) {
+      handleUpdateIsRead(roomAdmin);
+    }
+  }, [roomAdmin]);
 
   useEffect(() => {
     scrollToBottom();
@@ -390,7 +405,6 @@ function Chat({ socket, name, username, room, role }) {
                         : "bg-[#f0f0f0] hover:bg-[#e9e8e8]"
                     } w-full h-fit rounded-[15px] px-[20px] py-[8px] cursor-pointer relative`}
                     onClick={() => {
-                      handleUpdateIsRead();
                       socket.emit("leave_room", roomAdmin);
                       setRoomAdmin(room.room_id);
                       setNameRoomAdmin(room.room_name);
