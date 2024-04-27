@@ -413,7 +413,7 @@ function Chat({ socket, name, username, room, role }) {
             <div
               className={` ${
                 role === "m" ? "hidden" : ""
-              } h-[540px] w-full md:w-[300px] border-[1px] rounded-[15px] bg-white`}
+              } h-[540px] w-full md:w-[300px] border-[1px] rounded-[15px] bg-white overflow-hidden`}
             >
               <div className="px-[20px] flex items-center shadow-[0px_1px_7px_0px_#62618E30] h-[40px]">
                 <p className="font-[500] text-[23px] text-[#5E6470]">แชท</p>
