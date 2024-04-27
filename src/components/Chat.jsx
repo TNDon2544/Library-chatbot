@@ -100,11 +100,18 @@ function Chat({ socket, name, username, room, role }) {
           };
           await socket.emit("send_message", newMessageData);
           setMessageList((list) => [...list, newMessageData]);
+          if (
+            newMessageData.message_content ===
+            "เราไม่เข้าใจที่คุณถาม กรุณาถามใหม่อีกครั้ง"
+          ) {
+            setBotResponse(false);
+          }
         } else {
           setBotResponse(false);
         }
       } catch (error) {
         console.error("Error bot sending message:", error);
+        setBotResponse(false);
       }
     }
   }, [botResponse, currentMessage, role, room, socket, username]);
@@ -285,7 +292,7 @@ function Chat({ socket, name, username, room, role }) {
   useEffect(() => {
     if (role === "m" && !botResponse) {
       Swal.fire({
-        title: "Bot ไม่ตอบสนอง คุณต้องการคุยกับ Admin ไหม?",
+        title: "คุณต้องการคุยกับ Admin ไหม?",
         showCancelButton: true,
         cancelButtonText: "ไม่ต้องการ",
         confirmButtonText: "ต้องการ",
@@ -386,8 +393,9 @@ function Chat({ socket, name, username, room, role }) {
   useEffect(() => {
     if (roomAdmin) {
       handleUpdateIsRead(roomAdmin);
+      getRoomFunction();
     }
-  }, [roomAdmin]);
+  }, [roomAdmin, newMessage, getRoomFunction]);
 
   useEffect(() => {
     scrollToBottom();
@@ -556,9 +564,23 @@ function Chat({ socket, name, username, room, role }) {
                 >
                   <LeftOutlined className="text-[#0185ff] text-[20px]" />
                 </div>
-                <p className="font-[500] text-[17px] text-[#5E6470]">
-                  {role === "a" ? nameRoomAdmin : "Library Chatbot"}
-                </p>
+                <div className="w-full flex justify-between items-center">
+                  <p className="font-[500] text-[17px] text-[#5E6470]">
+                    {role === "a"
+                      ? nameRoomAdmin
+                      : `Library Chatbot ${botResponse ? "(ฺBot)" : "(Admin)"}`}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setBotResponse(false);
+                    }}
+                    className={`${
+                      role === "m" && botResponse ? "" : "hidden"
+                    } bg-[#1f5e95] hover:bg-[#386c9c] text-white rounded-[18px] w-fit px-3 text-sm py-1`}
+                  >
+                    คุยกับ Admin
+                  </button>
+                </div>
               </div>
               <div
                 className={`${
