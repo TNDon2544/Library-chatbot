@@ -7,6 +7,8 @@ import {
   PictureOutlined,
   SendOutlined,
   FileTextOutlined,
+  SearchOutlined,
+  ArrowLeftOutlined,
 } from "@ant-design/icons";
 import { useNameRoomAdmin, useRoomAdmin } from "../@hooks/globalState";
 import {
@@ -41,6 +43,9 @@ function Chat({ socket, name, username, room, role }) {
   const [images, setImages] = useState([]);
   const [imageURLs, setImageURLs] = useState([]);
   const [file, setFile] = useState([]);
+  const [searchText, setSearchText] = useState("");
+  const [isSearch, setIsSearch] = useState(false);
+  const [searchRoom, setSearchRoom] = useState([]);
 
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -369,6 +374,16 @@ function Chat({ socket, name, username, room, role }) {
   };
 
   useEffect(() => {
+    if (searchText && allRoom) {
+      setSearchRoom(
+        allRoom.filter((room) => room.room_name.includes(searchText))
+      );
+    } else {
+      setSearchRoom([]);
+    }
+  }, [allRoom, searchText]);
+
+  useEffect(() => {
     if (roomAdmin) {
       handleUpdateIsRead(roomAdmin);
     }
@@ -390,59 +405,137 @@ function Chat({ socket, name, username, room, role }) {
             <div
               className={` ${
                 role === "m" ? "hidden" : ""
-              } h-[540px] w-full md:w-[300px] border-[1px] rounded-[15px] bg-white overflow-auto`}
+              } h-[540px] w-full md:w-[300px] border-[1px] rounded-[15px] bg-white`}
             >
               <div className="px-[20px] flex items-center shadow-[0px_1px_7px_0px_#62618E30] h-[40px]">
                 <p className="font-[500] text-[23px] text-[#5E6470]">แชท</p>
               </div>
-              <div className="p-[20px] flex flex-col gap-3">
-                {allRoom?.map((room) => (
-                  <div
-                    key={room.room_id}
-                    className={`${
-                      roomAdmin === room.room_id
-                        ? "bg-[#1f5e95] text-white"
-                        : "bg-[#f0f0f0] hover:bg-[#e9e8e8]"
-                    } w-full h-fit rounded-[15px] px-[20px] py-[8px] cursor-pointer relative`}
-                    onClick={() => {
-                      socket.emit("leave_room", roomAdmin);
-                      setRoomAdmin(room.room_id);
-                      setNameRoomAdmin(room.room_name);
-                    }}
-                  >
-                    <div
-                      className={`${
-                        room.is_read === "read" ? "hidden" : ""
-                      } absolute top-4 right-4 w-3 h-3 rounded-full bg-[#FF0000]`}
-                    />
-                    <div className="font-[500] text-lg">{room.room_name}</div>
-                    <div className="flex items-center">
-                      <div className="whitespace-nowrap">
-                        {room.last_sender_name
-                          ? room.last_sender_name.split(" ")[0] + ":"
-                          : ""}
+              <div className="flex items-center gap-1 relative px-[20px] pt-[20px] pb-[10px]">
+                <div
+                  className={`${
+                    isSearch ? "" : "hidden"
+                  } flex items-center justify-center w-10 h-8 rounded-full hover:bg-[#e9e8e8] cursor-pointer`}
+                  onClick={() => {
+                    setIsSearch(false);
+                    setSearchText("");
+                    setSearchRoom([]);
+                  }}
+                >
+                  <ArrowLeftOutlined className="text-[#5E6470] text-[20px]" />
+                </div>
+                <input
+                  placeholder="ค้นหาแชท"
+                  className="flex pl-9 items-center gap-2 w-full h-[35px] rounded-full bg-[#f0f0f0] hover:bg-[#e9e8e8] px-4 outline-none"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  onClick={() => setIsSearch(true)}
+                />
+                <SearchOutlined
+                  className={`absolute top-[43%] ${
+                    isSearch ? "left-[65px]" : "left-7"
+                  } text-[20px] text-[#5E6470]`}
+                />
+              </div>
+              <div className="p-[20px] flex flex-col gap-3 overflow-auto h-[420px]">
+                {isSearch
+                  ? searchRoom?.map((room) => (
+                      <div
+                        key={room.room_id}
+                        className={`${
+                          roomAdmin === room.room_id
+                            ? "bg-[#1f5e95] text-white"
+                            : "bg-[#f0f0f0] hover:bg-[#e9e8e8]"
+                        } w-full h-fit rounded-[15px] px-[20px] py-[8px] cursor-pointer relative`}
+                        onClick={() => {
+                          socket.emit("leave_room", roomAdmin);
+                          setRoomAdmin(room.room_id);
+                          setNameRoomAdmin(room.room_name);
+                        }}
+                      >
+                        <div
+                          className={`${
+                            room.is_read === "read" ? "hidden" : ""
+                          } absolute top-4 right-4 w-3 h-3 rounded-full bg-[#FF0000]`}
+                        />
+                        <div className="font-[500] text-lg">
+                          {room.room_name}
+                        </div>
+                        <div className="flex items-center">
+                          <div className="whitespace-nowrap">
+                            {room.last_sender_name
+                              ? room.last_sender_name.split(" ")[0] + ":"
+                              : ""}
+                          </div>
+                          <div className="truncate">
+                            {room.latest_message
+                              ? room.latest_message
+                              : "ยังไม่มีข้อความล่าสุด"}
+                          </div>
+                        </div>
+                        <div className="text-sm leading-[25px]">
+                          {room.latest_sent_at
+                            ? format(
+                                new Date(room.latest_sent_at).toLocaleString(
+                                  "en-US",
+                                  {
+                                    timeZone: "UTC",
+                                  }
+                                ),
+                                "d-MM-yyyy HH:mm"
+                              )
+                            : "-"}
+                        </div>
                       </div>
-                      <div className="truncate">
-                        {room.latest_message
-                          ? room.latest_message
-                          : "ยังไม่มีข้อความล่าสุด"}
+                    ))
+                  : allRoom?.map((room) => (
+                      <div
+                        key={room.room_id}
+                        className={`${
+                          roomAdmin === room.room_id
+                            ? "bg-[#1f5e95] text-white"
+                            : "bg-[#f0f0f0] hover:bg-[#e9e8e8]"
+                        } w-full h-fit rounded-[15px] px-[20px] py-[8px] cursor-pointer relative`}
+                        onClick={() => {
+                          socket.emit("leave_room", roomAdmin);
+                          setRoomAdmin(room.room_id);
+                          setNameRoomAdmin(room.room_name);
+                        }}
+                      >
+                        <div
+                          className={`${
+                            room.is_read === "read" ? "hidden" : ""
+                          } absolute top-4 right-4 w-3 h-3 rounded-full bg-[#FF0000]`}
+                        />
+                        <div className="font-[500] text-lg">
+                          {room.room_name}
+                        </div>
+                        <div className="flex items-center">
+                          <div className="whitespace-nowrap">
+                            {room.last_sender_name
+                              ? room.last_sender_name.split(" ")[0] + ":"
+                              : ""}
+                          </div>
+                          <div className="truncate">
+                            {room.latest_message
+                              ? room.latest_message
+                              : "ยังไม่มีข้อความล่าสุด"}
+                          </div>
+                        </div>
+                        <div className="text-sm leading-[25px]">
+                          {room.latest_sent_at
+                            ? format(
+                                new Date(room.latest_sent_at).toLocaleString(
+                                  "en-US",
+                                  {
+                                    timeZone: "UTC",
+                                  }
+                                ),
+                                "d-MM-yyyy HH:mm"
+                              )
+                            : "-"}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-sm leading-[25px]">
-                      {room.latest_sent_at
-                        ? format(
-                            new Date(room.latest_sent_at).toLocaleString(
-                              "en-US",
-                              {
-                                timeZone: "UTC",
-                              }
-                            ),
-                            "d-MM-yyyy HH:mm"
-                          )
-                        : "-"}
-                    </div>
-                  </div>
-                ))}
+                    ))}
               </div>
             </div>
           </div>
