@@ -610,6 +610,16 @@ function Chat({ socket, name, username, room, role }) {
                   >
                     คุยกับ Admin
                   </button>
+                  <button
+                    onClick={() => {
+                      setBotResponse(true);
+                    }}
+                    className={`${
+                      role === "m" && !botResponse ? "" : "hidden"
+                    } bg-[#1f5e95] hover:bg-[#386c9c] text-white rounded-[18px] w-fit px-3 text-sm py-1`}
+                  >
+                    คุยกับ Bot
+                  </button>
                 </div>
               </div>
               <div
