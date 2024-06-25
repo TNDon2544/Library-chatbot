@@ -87,9 +87,11 @@ export async function deleteNotification(id_notification) {
   }
 }
 
-export async function getChat(room_id) {
+export async function getChat(room_id, limit = 10) {
   try {
-    const res = await getMethod(`/api/chat/${room_id}`);
+    const res = await getMethod(
+      `/api/chat/${room_id}?limit=${limit}`
+    );
     return res;
   } catch (error) {
     console.error("Error:", error);

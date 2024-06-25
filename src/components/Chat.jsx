@@ -9,6 +9,7 @@ import {
   FileTextOutlined,
   SearchOutlined,
   ArrowLeftOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import { useNameRoomAdmin, useRoomAdmin } from "../@hooks/globalState";
 import {
@@ -46,6 +47,9 @@ function Chat({ socket, name, username, room, role }) {
   const [searchText, setSearchText] = useState("");
   const [isSearch, setIsSearch] = useState(false);
   const [searchRoom, setSearchRoom] = useState([]);
+  const [chatLimit, setChatLimit] = useState(10);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadMoreChatTrigger, setLoadMoreChatTrigger] = useState(false);
 
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -128,18 +132,33 @@ function Chat({ socket, name, username, room, role }) {
     getRoomFunction();
   }, [getRoomFunction, messageList, newMessage]);
 
+  const loadMoreChat = useCallback(() => {
+    setLoadMoreChatTrigger(true);
+    setChatLimit(chatLimit + 10);
+  }, [chatLimit]);
+
   const getChatFunction = useCallback(() => {
     if (role) {
       if (role === "a") {
         if (roomAdmin) {
           setMessageList([]);
-          getChat(roomAdmin).then((res) => setMessageList(res.data));
+          getChat(roomAdmin, chatLimit).then((res) => {
+            setMessageList(res.data);
+            if (res.data.length < chatLimit) {
+              setHasMore(false);
+            }
+          });
         }
       } else {
-        getChat(username).then((res) => setMessageList(res.data));
+        getChat(username, chatLimit).then((res) => {
+          setMessageList(res.data);
+          if (res.data.length < chatLimit) {
+            setHasMore(false);
+          }
+        });
       }
     }
-  }, [role, roomAdmin, username]);
+  }, [chatLimit, role, roomAdmin, username]);
 
   useEffect(() => {
     getChatFunction();
@@ -398,8 +417,10 @@ function Chat({ socket, name, username, room, role }) {
   }, [roomAdmin, newMessage, getRoomFunction]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messageList]);
+    if (!loadMoreChatTrigger) {
+      scrollToBottom();
+    }
+  }, [loadMoreChatTrigger, messageList]);
 
   const linkStyle = {
     textDecoration: "underline",
@@ -458,6 +479,9 @@ function Chat({ socket, name, username, room, role }) {
                           socket.emit("leave_room", roomAdmin);
                           setRoomAdmin(room.room_id);
                           setNameRoomAdmin(room.room_name);
+                          setChatLimit(10);
+                          setHasMore(true);
+                          setLoadMoreChatTrigger(false)
                         }}
                       >
                         <div
@@ -506,6 +530,9 @@ function Chat({ socket, name, username, room, role }) {
                         onClick={() => {
                           socket.emit("leave_room", roomAdmin);
                           setRoomAdmin(room.room_id);
+                          setChatLimit(10);
+                          setHasMore(true);
+                          setLoadMoreChatTrigger(false)
                           setNameRoomAdmin(room.room_name);
                         }}
                       >
@@ -559,6 +586,9 @@ function Chat({ socket, name, username, room, role }) {
                   } flex justify-center items-center rounded-full w-[35px] h-[30px] hover:bg-[#f3f6ff] cursor-pointer`}
                   onClick={() => {
                     setRoomAdmin("");
+                    setChatLimit(10);
+                    setHasMore(true);
+                    setLoadMoreChatTrigger(false)
                     setMessageList([]);
                   }}
                 >
@@ -602,7 +632,20 @@ function Chat({ socket, name, username, room, role }) {
                     </a>
                   )}
                 >
-                  {messageList.map((messageContent, index) => {
+                  {(roomAdmin || role === "m") && (
+                    <div
+                      className={`${
+                        !hasMore && "hidden"
+                      } flex justify-center gap-1 items-center pt-2 cursor-pointer hover:text-slate-600`}
+                      onClick={loadMoreChat}
+                    >
+                      โหลดแชทก่อนหน้า
+                      <span className="pb-1">
+                        <ReloadOutlined />
+                      </span>
+                    </div>
+                  )}
+                  {messageList?.map((messageContent, index) => {
                     return (
                       <div className="relative" key={index}>
                         {messageContent.file_data &&
@@ -848,6 +891,7 @@ function Chat({ socket, name, username, room, role }) {
                   onChange={(event) => {
                     setCurrentMessage(event.target.value);
                   }}
+                  onClick={() => setLoadMoreChatTrigger(false)}
                   onKeyDown={(event) => {
                     event.key === "Enter" && sendMessage();
                   }}
