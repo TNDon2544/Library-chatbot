@@ -649,7 +649,7 @@ function Chat({ socket, name, username, room, role }) {
                       } flex justify-center gap-1 items-center pt-2 cursor-pointer hover:text-slate-600`}
                       onClick={loadMoreChat}
                     >
-                      โหลดแชทก่อนหน้า
+                      กดโหลดแชทก่อนหน้า
                       <span className="pb-1">
                         <ReloadOutlined />
                       </span>
